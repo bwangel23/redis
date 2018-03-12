@@ -55,6 +55,7 @@ typedef struct dictEntry {
     struct dictEntry *next;
 } dictEntry;
 
+// 这里的思想类似于Go，使用函数来定义类型(接口)
 typedef struct dictType {
     unsigned int (*hashFunction)(const void *key);
     void *(*keyDup)(void *privdata, const void *key);
