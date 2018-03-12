@@ -216,6 +216,7 @@ int dictExpand(dict *d, unsigned long size)
 
     /* Allocate the new hash table and initialize all pointers to NULL */
     n.size = realsize;
+    /* 掩码总是等于 size - 1 */
     n.sizemask = realsize-1;
     n.table = zcalloc(realsize*sizeof(dictEntry*));
     n.used = 0;
@@ -313,7 +314,12 @@ int dictRehashMilliseconds(dict *d, int ms) {
  *
  * This function is called by common lookup or update operations in the
  * dictionary so that the hash table automatically migrates from H1 to H2
- * while it is actively used. */
+ * while it is actively used.
+ *
+ * 这个函数执行了渐进式 rehash 的过程，即在字典的增删改查操作中，除了做完本职工作以外，
+ * 还额外的将ht[0]中的 rehashidx 指向的数据 rehash 到 ht[1] 中
+ *
+ * */
 static void _dictRehashStep(dict *d) {
     if (d->iterators == 0) dictRehash(d,1);
 }
@@ -358,6 +364,7 @@ dictEntry *dictAddRaw(dict *d, void *key)
 
     /* Allocate the memory and store the new entry */
     ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];
+    /* 哈希表通过单链表来解决键冲突，下面的代码向单链表中添加了哈希表节点 */
     entry = zmalloc(sizeof(*entry));
     entry->next = ht->table[index];
     ht->table[index] = entry;
@@ -387,6 +394,8 @@ int dictReplace(dict *d, void *key, void *val)
      * as the previous one. In this context, think to reference counting,
      * you want to increment (set), and then decrement (free), and not the
      * reverse. */
+
+    /* 这里必须先 set 再 free，因为值也可能是一个指针，先 free 可能就把真正的值给丢弃了 */
     auxentry = *entry;
     dictSetVal(d, entry, val);
     dictFreeVal(d, &auxentry);
@@ -459,6 +468,7 @@ int _dictClear(dict *d, dictht *ht, void(callback)(void *)) {
     for (i = 0; i < ht->size && ht->used > 0; i++) {
         dictEntry *he, *nextHe;
 
+        // i == 0 || i > 65535，调用回调函数
         if (callback && (i & 65535) == 0) callback(d->privdata);
 
         if ((he = ht->table[i]) == NULL) continue;
@@ -942,6 +952,7 @@ static int _dictExpandIfNeeded(dict *d)
 }
 
 /* Our hash table capability is a power of two */
+/* 哈希表的大小总是2的N次幂 */
 static unsigned long _dictNextPower(unsigned long size)
 {
     unsigned long i = DICT_HT_INITIAL_SIZE;
@@ -971,6 +982,7 @@ static int _dictKeyIndex(dict *d, const void *key)
     /* Compute the key hash value */
     h = dictHashKey(d, key);
     for (table = 0; table <= 1; table++) {
+        // TODO: 哈希值和长度掩码相与获得 entry 在哈希表中的索引值，但为什么要这么做?
         idx = h & d->ht[table].sizemask;
         /* Search if this slot does not already contain the given key */
         he = d->ht[table].table[idx];
