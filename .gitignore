@@ -16,8 +16,8 @@ appendonly.aof
 SHORT_TERM_TODO
 release.h
 src/transfer.sh
-src/.idea/
-src/cmake-build-debug/
+.idea/
+cmake-build-debug/
 src/configs
 redis.ds
 src/redis.conf
