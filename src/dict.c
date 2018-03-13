@@ -321,6 +321,7 @@ int dictRehashMilliseconds(dict *d, int ms) {
  *
  * */
 static void _dictRehashStep(dict *d) {
+    // d->iterators == 0 表示当前字典中没有安全迭代器
     if (d->iterators == 0) dictRehash(d,1);
 }
 
@@ -582,6 +583,19 @@ dictIterator *dictGetSafeIterator(dict *d) {
     return i;
 }
 
+/*
+ *  迭代过程中先遍历 ht[0] 中所有的哈希表项，然后再遍历 ht[1] 所有的哈希表项
+ *
+ *  安全迭代器即在字典的操作中不会进行渐进式rehash，即 ht[0] 中的项目不会移动到 ht[1]中，也意味着不会有数据重复出现
+ *
+ *  非安全迭代器是指在字典的迭代操作中会进行渐进式rehash，
+ *  因此在创建了这个迭代器后就只能调用 dictNext，如果调用了其他函数，可能会进行 rehash
+ *  这也就意味着如果调用了字典的其他接口，迭代器中可能会有重复的数据出现
+ *
+ *  而Redis会在创建迭代器的时候获取当前字典的指纹，释放迭代器的时候再检查指纹，如果两次获取的指纹不同，那么程序抛出异常
+ *
+ *  指纹其实就是对当前字典哈希表的地址，used, size等属性进行运算,获得一个唯一的值来唯一标识当前的字典
+ */
 dictEntry *dictNext(dictIterator *iter)
 {
     while (1) {

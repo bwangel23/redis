@@ -79,13 +79,18 @@ typedef struct dict {
     void *privdata;
     dictht ht[2];
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    // iterators 表示安全迭代器的数量
     int iterators; /* number of iterators currently running */
 } dict;
 
 /* If safe is set to 1 this is a safe iterator, that means, you can call
  * dictAdd, dictFind, and other functions against the dictionary even while
  * iterating. Otherwise it is a non safe iterator, and only dictNext()
- * should be called while iterating. */
+ * should be called while iterating.
+ *
+ * 安全迭代器表示在迭代过程中可以调用dictAdd, dictFind 和其他字典的接口
+ * 非安全迭代器在迭代过程中只能调用 dictNext 接口
+ * */
 typedef struct dictIterator {
     dict *d;
     long index;
