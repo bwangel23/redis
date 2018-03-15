@@ -44,6 +44,7 @@
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
 
+// 哈希表项
 typedef struct dictEntry {
     void *key;
     union {
@@ -52,7 +53,7 @@ typedef struct dictEntry {
         int64_t s64;
         double d;
     } v;
-    struct dictEntry *next;
+    struct dictEntry *next; // 哈希表中是通过单链表解决键索引冲突的，这用来指向同一个键索引下的下一个元素
 } dictEntry;
 
 // 这里的思想类似于Go，使用函数来定义类型(接口)
@@ -65,6 +66,7 @@ typedef struct dictType {
     void (*valDestructor)(void *privdata, void *obj);
 } dictType;
 
+/* 哈希表，每个字典都有两个哈希表，其中多的一个用来做渐进式 rehash */
 /* This is our hash table structure. Every dictionary has two of this as we
  * implement incremental rehashing, for the old to the new table. */
 typedef struct dictht {
@@ -74,10 +76,11 @@ typedef struct dictht {
     unsigned long used;
 } dictht;
 
+/* 字典的定义 */
 typedef struct dict {
-    dictType *type;
-    void *privdata;
-    dictht ht[2];
+    dictType *type;  // 字典的类型
+    void *privdata; // 字典私有数据
+    dictht ht[2]; // 字典中的哈希表
     long rehashidx; /* rehashing not in progress if rehashidx == -1 */
     // iterators 表示安全迭代器的数量
     int iterators; /* number of iterators currently running */
@@ -88,16 +91,17 @@ typedef struct dict {
  * iterating. Otherwise it is a non safe iterator, and only dictNext()
  * should be called while iterating.
  *
- * 安全迭代器表示在迭代过程中可以调用dictAdd, dictFind 和其他字典的接口
- * 非安全迭代器在迭代过程中只能调用 dictNext 接口
+ * 字典迭代器用来获取字典中所有的项，其中迭代器可以分为安全迭代器和非安全迭代器
+ * 安全迭代器表示在迭代过程中可以调用 dictAdd(), dictFind() 和其他字典的接口
+ * 非安全迭代器在迭代过程中只能调用 dictNext() 接口
  * */
 typedef struct dictIterator {
-    dict *d;
-    long index;
-    int table, safe;
-    dictEntry *entry, *nextEntry;
+    dict *d; // 迭代器所关联的字典
+    long index;  //  当前迭代器在字典中迭代的索引
+    int table, safe; // 哈希表的索引，当前迭代器是否是安全迭代器
+    dictEntry *entry, *nextEntry; // 当前迭代器所指向的哈希表项和下一个哈希表项
     /* unsafe iterator fingerprint for misuse detection. */
-    long long fingerprint;
+    long long fingerprint;  // 字典的指纹，非安全迭代器中用于鉴别字典是否被修改过
 } dictIterator;
 
 typedef void (dictScanFunction)(void *privdata, const dictEntry *de);
