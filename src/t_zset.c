@@ -88,6 +88,7 @@ void zslFree(zskiplist *zsl) {
     zskiplistNode *node = zsl->header->level[0].forward, *next;
 
     zfree(zsl->header);
+    // 所有的跳跃表节点都通过 level0 连接起来
     while(node) {
         next = node->level[0].forward;
         zslFreeNode(node);
@@ -108,12 +109,16 @@ int zslRandomLevel(void) {
 }
 
 zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
+    // update 保存的是要插入节点的前驱节点
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned int rank[ZSKIPLIST_MAXLEVEL];
     int i, level;
 
     redisAssert(!isnan(score));
     x = zsl->header;
+    // 这个循环过后,
+    // update 中保存的是每层的小于 obj 的最大对象节点
+    // rank 保存的是head到这个最大对象节点的跨度
     for (i = zsl->level-1; i >= 0; i--) {
         /* store rank that is crossed to reach the insert position */
         rank[i] = i == (zsl->level-1) ? 0 : rank[i+1];
@@ -126,6 +131,7 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
         }
         update[i] = x;
     }
+
     /* we assume the key is not already inside, since we allow duplicated
      * scores, and the re-insertion of score and redis object should never
      * happen since the caller of zslInsert() should test in the hash table
@@ -145,6 +151,8 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
         update[i]->level[i].forward = x;
 
         /* update span covered by update[i] as x is inserted here */
+        //TODO: 这两句这个跨度是如何计算的，真的没太看懂
+        // https://github.com/huangz1990/redis-3.0-annotated/issues/27
         x->level[i].span = update[i]->level[i].span - (rank[0] - rank[i]);
         update[i]->level[i].span = (rank[0] - rank[i]) + 1;
     }
@@ -171,6 +179,7 @@ void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
             update[i]->level[i].span += x->level[i].span - 1;
             update[i]->level[i].forward = x->level[i].forward;
         } else {
+            // 这里应该指的是 update 中的节点，也可能指向的是 x 后面的节点
             update[i]->level[i].span -= 1;
         }
     }

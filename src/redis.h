@@ -603,16 +603,21 @@ typedef struct zskiplistNode {
     robj *obj;
     double score;
     struct zskiplistNode *backward;
+    // 跳跃表节点的层
     struct zskiplistLevel {
+        // 前进指针
         struct zskiplistNode *forward;
+        // 跨度
         unsigned int span;
     } level[];
+    // TODO: level 的定义是什么意思，为什么换成指针就会报错
 } zskiplistNode;
 
 typedef struct zskiplist {
     struct zskiplistNode *header, *tail;
-    unsigned long length;
-    int level;
+    unsigned long length; // 跳跃表节点的数量
+    // 表头节点会有32层
+    int level;  // 跳跃表层数最高的节点的层数，表头节点的层数并不计算在内
 } zskiplist;
 
 typedef struct zset {
